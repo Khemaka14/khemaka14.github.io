@@ -1,41 +1,48 @@
-let queryUrl = 'https://gbfs.citibikenyc.com/gbfs/en/station_information.json'
-
-d3.json(queryUrl).then( function(response) {
-
- let stations = response.data.stations
-
- let bikeMarkers = []
-
- stations.forEach(function(station) {
-
-  let marker = L.marker([station.lat, station.lon]).bindPopup(`<h3> ${station.name} </h3> <hr> <h2> ${station.capacity} </h2>`)
-
-  bikeMarkers.push(marker)
-
- })
-
- let bikeStations = L.layerGroup(bikeMarkers)
-
- let streetmap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+// Creating the map object
+let myMap = L.map("map", {
+  center: [40.7, -73.95],
+  zoom: 11
 });
 
-let baseMaps = {
-  "Street Map": streetmap
-};
+// Adding the tile layer
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(myMap);
 
-let overlayMaps = {
-  "Bike Stations": bikeStations
-};
+// Store the API query variables.
+// For docs, refer to https://dev.socrata.com/docs/queries/where.html.
+// And, refer to https://dev.socrata.com/foundry/data.cityofnewyork.us/erm2-nwe9.
+let baseURL = "https://data.cityofnewyork.us/resource/fhrw-4uyv.json?";
+let date = "$where=created_date between'2016-01-01T00:00:00' and '2017-01-01T00:00:00'";
+let complaint = "&complaint_type=Rodent";
+let limit = "&$limit=10000";
 
-let map = L.map("map-id", {
-  center: [40.73, -74.0059],
-  zoom: 12,
-  layers: [streetmap, bikeStations]
+// Assemble the API query URL.
+let url = baseURL + date + complaint + limit;
+
+// Get the data with d3.
+d3.json(url).then(function(response) {
+
+  // Create a new marker cluster group.
+  let markers = L.markerClusterGroup();
+
+  // Loop through the data.
+  for (let i = 0; i < response.length; i++) {
+
+    // Set the data location property to a variable.
+    let location = response[i].location;
+
+    // Check for the location property.
+    if (location) {
+
+      // Add a new marker to the cluster group, and bind a popup.
+      markers.addLayer(L.marker([location.coordinates[1], location.coordinates[0]])
+        .bindPopup(response[i].descriptor));
+    }
+
+  }
+
+  // Add our marker cluster layer to the map.
+  myMap.addLayer(markers);
+
 });
-
-L.control.layers(baseMaps, overlayMaps, {
-  collapsed: false
-}).addTo(map);
-
-})
